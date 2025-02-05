@@ -28,6 +28,9 @@ ZOOM_LEVELS = range(1, 20)  # Zoom levels to download
 OUTPUT_DIR = "tiles"
 
 
+# PRINT_DOTS = False
+
+
 def latlon_to_tile(lat, lon, zoom):
     """Convert latitude and longitude to tile coordinates (x, y) at a given zoom level."""
     n = 2**zoom
@@ -61,6 +64,8 @@ def tile_to_quadkey(x, y, zoom):
 
 
 def download_tile(quadkey, zoom, x, y):
+    # global PRINT_DOTS
+
     """Download a tile image given its quadkey."""
     url = f"https://t.ssl.ak.dynamic.tiles.virtualearth.net/comp/ch/{quadkey}?mkt=en-us&it=A,G,L&shading=hill"
     tile_path = os.path.join(OUTPUT_DIR, str(zoom), str(x))
@@ -68,8 +73,18 @@ def download_tile(quadkey, zoom, x, y):
 
     output_file = os.path.join(tile_path, f"{y}.jpg")
     if os.path.exists(output_file):  # Skip if already downloaded
+        # liloxx3:TODO - dots
         print(f"Skipping {zoom}/{x}/{y}")
+        # if PRINT_DOTS:
+        #     print(".", end="")
+        # else:
+        #     print("Skipping existing files ")
+        #     PRINT_DOTS = True
         return
+
+    # if PRINT_DOTS:
+    #     PRINT_DOTS = False
+    #     print()
 
     response = requests.get(url, stream=True)
     if response.status_code == 200:
@@ -84,11 +99,17 @@ def download_tile(quadkey, zoom, x, y):
 def process_zoom_level(zoom):
     """Process all tiles in the bounding box for a given zoom level."""
     min_x, min_y = latlon_to_tile(
-        BOUNDING_BOX["max_lat"], BOUNDING_BOX["min_lon"], zoom
+        BOUNDING_BOX["max_lat"],
+        BOUNDING_BOX["min_lon"],
+        zoom,
     )
     max_x, max_y = latlon_to_tile(
-        BOUNDING_BOX["min_lat"], BOUNDING_BOX["max_lon"], zoom
+        BOUNDING_BOX["min_lat"],
+        BOUNDING_BOX["max_lon"],
+        zoom,
     )
+
+    print(f"liloxx3 --- min_x: {min_x}, min_y: {min_y}, max_x: {max_x}, max_y: {max_y}")
 
     tasks = []
     with ThreadPoolExecutor(max_workers=10) as executor:
@@ -99,14 +120,6 @@ def process_zoom_level(zoom):
 
     for task in tasks:
         task.result()  # Wait for all tasks to finish
-
-
-def main():
-    """Main function to download tiles for all zoom levels."""
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    for zoom in ZOOM_LEVELS:
-        print(f"Processing zoom level {zoom}...")
-        process_zoom_level(zoom)
 
 
 def parse_command_line_args():
@@ -229,7 +242,6 @@ def parse_command_line_args():
     while True:
         user_input = input("Confirm [y|n]")
         if "y" == user_input:
-            # liloxx3:TODO - update GLOBALS
             global BOUNDING_BOX
             BOUNDING_BOX = {
                 "min_lat": args.south,
@@ -238,8 +250,15 @@ def parse_command_line_args():
                 "max_lon": args.east,
             }
 
+            print(f"liloxx3 --- BOUNDING_BOX: {BOUNDING_BOX}")
+
+            # Zoom levels to download
             global ZOOM_LEVELS
-            ZOOM_LEVELS = args.zoom_levels  # Zoom levels to download
+            # liloxx3
+            if len(args.zoom_levels) == 1:
+                args.zoom_levels = (args.zoom_levels[0], args.zoom_levels[0])
+            ZOOM_LEVELS = range(args.zoom_levels[0], args.zoom_levels[1])
+            print(f"liloxx3 --- ZOOM_LEVELS: {ZOOM_LEVELS}")
 
             global OUTPUT_DIR
             OUTPUT_DIR = args.output
@@ -249,6 +268,14 @@ def parse_command_line_args():
             exit(0)
 
 
+def main():
+    """Main function to download tiles for all zoom levels."""
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    for zoom in ZOOM_LEVELS:
+        print(f"Processing zoom level {zoom}...")
+        process_zoom_level(zoom)
+
+
 if __name__ == "__main__":
-    parse_command_line_args()
-    # main()
+    # parse_command_line_args()
+    main()
