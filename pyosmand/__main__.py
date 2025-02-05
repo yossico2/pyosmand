@@ -1,15 +1,27 @@
 import os
+import signal
+import sys
 import math
 import requests
+import argparse
 from concurrent.futures import ThreadPoolExecutor
+
+
+def signal_handler(sig, frame):
+    print("\n")
+    sys.exit(0)
+
+
+signal.signal(signal.SIGINT, signal_handler)
 
 # Define your bounding box (min_lat, min_lon, max_lat, max_lon)
 BOUNDING_BOX = {
-    "min_lat": 37.7749,  # Change to your region
-    "max_lat": 37.8044,
-    "min_lon": -122.4194,
-    "max_lon": -122.3890,
+    "min_lat": 37.7749,  # south
+    "max_lat": 37.8044,  # north
+    "min_lon": -122.4194,  # west
+    "max_lon": -122.3890,  # east
 }
+
 ZOOM_LEVELS = range(1, 20)  # Zoom levels to download
 
 # Directory where tiles will be saved
@@ -50,7 +62,7 @@ def tile_to_quadkey(x, y, zoom):
 
 def download_tile(quadkey, zoom, x, y):
     """Download a tile image given its quadkey."""
-    url = f"https://t.ssl.ak.dynamic.tiles.virtualearth.net/comp/ch/{quadkey}?mkt=en-us&it=A,G,L,LA&shading=hill"
+    url = f"https://t.ssl.ak.dynamic.tiles.virtualearth.net/comp/ch/{quadkey}?mkt=en-us&it=A,G,L&shading=hill"
     tile_path = os.path.join(OUTPUT_DIR, str(zoom), str(x))
     os.makedirs(tile_path, exist_ok=True)
 
@@ -97,5 +109,146 @@ def main():
         process_zoom_level(zoom)
 
 
+def parse_command_line_args():
+    # Create argument parser
+    parser = argparse.ArgumentParser(description="Processcommand-line arguments.")
+
+    # Add arguments
+    parser.add_argument(
+        "-o",
+        "--output",
+        help="output directory path (created if not exists)",
+    )
+
+    parser.add_argument(
+        "--south",
+        type=float,
+        help="south (min_lat)",
+    )
+
+    parser.add_argument(
+        "--north",
+        type=float,
+        help="north (max_lat)",
+    )
+
+    parser.add_argument(
+        "--west",
+        type=float,
+        help="west (min_lon)",
+    )
+
+    parser.add_argument(
+        "--east",
+        type=float,
+        help="east (max_lon)",
+    )
+
+    # Add a zoom tuple argument (two numbers separated by a comma)
+    parser.add_argument(
+        "-z",
+        "--zoom-levels",
+        type=lambda s: tuple(map(int, s.split(","))),
+        help="zoom level range (e.g., 10,20)",
+    )
+
+    # Parse arguments
+    args = parser.parse_args()
+
+    # OUTPUT_DIR
+    while args.output is None:
+        user_input = input("Enter output directory: ")
+        output = user_input if user_input is not None and len(user_input) > 0 else None
+        if output and not os.path.exists(output):
+            while True:
+                user_input = input("output path not exists. create ? [y|n]")
+                if "y" == user_input:
+                    break
+                if "n" == user_input:
+                    exit(0)
+            args.output = output
+
+    # ZOOM_LEVELS
+    zoom_levels_len = len(args.zoom_levels)
+    if 1 != zoom_levels_len and 2 != zoom_levels_len:
+        args.zoom_levels = None
+    while args.zoom_levels is None:
+        user_input = input("Enter zoom levels to download (e.g., 10 or 10,20): ")
+        if user_input:
+            args.zoom_levels = tuple(map(int, user_input.split(",")))
+            zoom_levels_len = len(args.zoom_levels)
+            if 1 != zoom_levels_len and 2 != zoom_levels_len:
+                args.zoom_levels = None
+
+    # BOUNDING_BOX
+    if (
+        args.south is None
+        or args.north is None
+        or args.west is None
+        or args.east is None
+    ):
+        print("Enter bounding-box")
+
+    while args.south is None:
+        user_input = input("south: ")
+        try:
+            args.south = float(user_input)
+        except:
+            continue
+    while args.north is None:
+        user_input = input("north: ")
+        try:
+            args.north = float(user_input)
+        except:
+            continue
+    while args.west is None:
+        user_input = input("west: ")
+        try:
+            args.west = float(user_input)
+        except:
+            continue
+    while args.east is None:
+        user_input = input("east: ")
+        try:
+            args.east = float(user_input)
+        except:
+            continue
+
+    # confirm selection
+    print(f"output directory path: {args.output}")
+
+    print(
+        f"bounding-box: (south: {args.south}, north: {args.north}, west: {args.west}, east: {args.east})"
+    )
+
+    if 1 == zoom_levels_len:
+        print(f"zoom-level: {args.zoom_levels[0]}")
+    elif 2 == zoom_levels_len:
+        print(f"zoom-levels: {args.zoom_levels[0]}-{args.zoom_levels[1]}")
+
+    while True:
+        user_input = input("Confirm [y|n]")
+        if "y" == user_input:
+            # liloxx3:TODO - update GLOBALS
+            global BOUNDING_BOX
+            BOUNDING_BOX = {
+                "min_lat": args.south,
+                "max_lat": args.north,
+                "min_lon": args.west,
+                "max_lon": args.east,
+            }
+
+            global ZOOM_LEVELS
+            ZOOM_LEVELS = args.zoom_levels  # Zoom levels to download
+
+            global OUTPUT_DIR
+            OUTPUT_DIR = args.output
+            break
+        if "n" == user_input:
+            print("Canceled.")
+            exit(0)
+
+
 if __name__ == "__main__":
-    main()
+    parse_command_line_args()
+    # main()
