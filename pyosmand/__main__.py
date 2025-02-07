@@ -16,10 +16,14 @@ signal.signal(signal.SIGINT, signal_handler)
 
 # Define your bounding box (min_lat, min_lon, max_lat, max_lon)
 BOUNDING_BOX = {
-    "min_lat": 37.7749,  # south
-    "max_lat": 37.8044,  # north
-    "min_lon": -122.4194,  # west
-    "max_lon": -122.3890,  # east
+    # "min_lat": 37.7749,  # south
+    # "max_lat": 37.8044,  # north
+    # "min_lon": -122.4194,  # west
+    # "max_lon": -122.3890,  # east
+    "min_lat": 29.48,  # south
+    "max_lat": 33.41,  # north
+    "min_lon": 34.24,  # west
+    "max_lon": 35.888,  # east
 }
 
 ZOOM_LEVELS = range(1, 20)  # Zoom levels to download
